@@ -16,10 +16,10 @@ app.get('/data', (req, res) => {
 app.post('/', async (req, res) => {
   try {
     // Extract temperature and humidity from the request body
-    const { temperature, humidity } = req.body;
+    const { temperature, humidity, soil_moisture } = req.body;
 
     // Store sensor data in Google Cloud Storage
-    await storeSensorData(temperature, humidity);
+    await storeSensorData(temperature, humidity, soil_moisture);
 
     // Send response
     res.status(200).send('Sensor data recorded successfully');
@@ -30,7 +30,7 @@ app.post('/', async (req, res) => {
 });
 
 // Function to store sensor data in Google Cloud Storage
-async function storeSensorData(temperature, humidity) {
+async function storeSensorData(temperature, humidity, soil_moisture) {
   const storage = new Storage();
 
   // Generate a unique filename for each data entry
@@ -41,7 +41,7 @@ async function storeSensorData(temperature, humidity) {
   const file = bucket.file(filename);
 
   // Define the sensor data as JSON
-  const sensorData = JSON.stringify({ temperature, humidity });
+  const sensorData = JSON.stringify({ temperature, humidity, soil_moisture });
 
   // Write the sensor data to the file
   await file.save(sensorData, {
