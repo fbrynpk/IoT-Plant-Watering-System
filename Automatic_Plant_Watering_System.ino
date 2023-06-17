@@ -16,9 +16,9 @@ const char* cloudRunURL = "https://sensor-data-7uy7quia7q-de.a.run.app";
 float temperature;
 float humidity;
 // Initialize sensor readings (replace with your own sensor code)
-//float sensorValue = analogRead(A0);
-//pinMode(D0,OUTPUT); //output pin for relay board, this will sent signal to the relay
-//pinMode(A0,INPUT); //input pin coming from soil sensor
+int soilMoisture = A0;
+const int relayPin = D0;
+const int moistureThreshold = 1010;
 
 void setup() {
   Serial.begin(115200);
@@ -34,6 +34,10 @@ void setup() {
   Serial.println("Connected to WiFi");
 
   dht.begin();
+
+  pinMode(soilMoisture, INPUT);
+  pinMode(relayPin, OUTPUT); //Set relay pin as output
+  digitalWrite(relayPin, LOW); //Set initial state to off
 }
 
 
@@ -41,9 +45,10 @@ void loop() {
   // Add any additional logic or sensor readings here
   temperature = readTemperature();
   humidity = readHumidity();
+  soilMoisture = analogRead(A0);
 
   // Create JSON payload
-  String payload = "{\"temperature\": " + String(temperature) + ", \"humidity\": " + String(humidity) + "}";
+  String payload = "{\"temperature\": " + String(temperature) + ", \"humidity\": " + String(humidity) + ", \"soil_moisture\": " + soilMoisture + "}";
 
   // Send sensor data to Cloud Run
   std::unique_ptr<BearSSL::WiFiClientSecure>client(new BearSSL::WiFiClientSecure);
@@ -65,17 +70,18 @@ void loop() {
   https.end();
 
   //Delay before sending the next data
-  delay(5000);
+  delay(1000);
 
- // float sensorValue = analogRead(A0);
-  //if(sensorValue > 1) // if water level is full then cut the relay 
- // {
- // digitalWrite(D0,HIGH); // low is to cut the relay
- // }
- // else if(sensorValue == 1)
- // {
- // digitalWrite(D0,LOW); //high to continue proving signal and water supply
-  //}
+  if(soilMoisture < moistureThreshold) // if water level is full then cut the relay 
+  {
+   digitalWrite(relayPin,LOW); // low is to cut the relay
+   Serial.println("Water Pump Turned Off");
+  }
+  else
+  {
+    digitalWrite(relayPin,HIGH); //high to continue proving signal and water supply
+    Serial.println("Water Pump Turned Om");
+  }
 }
 
 float readTemperature() {
