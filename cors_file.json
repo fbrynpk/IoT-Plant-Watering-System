@@ -1,0 +1,8 @@
+[
+  {
+    "origin": ["https://sensor-data-7uy7quia7q-de.a.run.app"],
+    "responseHeader": ["Content-Type"],
+    "method": ["GET"],
+    "maxAgeSeconds": 3600
+  }
+]

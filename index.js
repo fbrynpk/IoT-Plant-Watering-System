@@ -7,14 +7,7 @@ const bucketName = 'soil-moisture-sensor-data';
 
 // Middleware to parse JSON request body
 app.use(express.json());
-//app.use(express.static('public'));
-
-// Enable CORS for all routes
-app.use((req, res, next) => {
-  res.header('Access-Control-Allow-Origin', '*');
-  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept');
-  next();
-});
+app.use(express.static('public'));
 
 // Route to handle incoming sensor data
 app.post('/', async (req, res) => {
@@ -38,52 +31,44 @@ async function storeSensorData(temperature, humidity, soil_moisture) {
   const storage = new Storage();
 
   // Generate a unique filename for each data entry
-  const filename = `sensor-data.json`;
-
-  // Define the sensor data as JSON
-  const sensorData = JSON.stringify({ temperature, humidity, soil_moisture });
+  const filename = `whole-data.txt`;
   
   // Create a new file in the specified bucket
   const bucket = storage.bucket(bucketName);
   const file = bucket.file(filename);
-  //Check if the file exists or not
-  const exists = await file.exists();
-  if(exists[0]){
-    const currentData = await file.download();
-    const existingData = JSON.parse(currentData.toString());
-    const newData = {...existingData, ...data};
-  }else{
-    await file.save(sensorData)
-  }
 
-  // Write the sensor data to the file
-  await file.save(sensorData, {
-    contentType: 'application/json',
-    gzip: true
-  });
+  // Define the sensor data as JSON
+  const jsonTemperature = JSON.stringify(temperature);
+  const jsonHumidity = JSON.stringify(humidity);
+  const jsonSoil_moisture = JSON.stringify(soil_moisture);
 
-  console.log(`Sensor data saved to: gs://${bucketName}/${filename}`);
-}
-
-// Endpoint to handle GET requests
-app.get('/', async (req, res) => {
+  // Read existing file content
+  let existingData = '';
   try {
-    // Get the file reference
-    const file = Storage.bucket(bucketName).file(fileName);
-
-    // Download the file as a string
-    const [content] = await file.download();
-
-    // Parse the JSON content
-    const sensorData = JSON.parse(content);
-
-    // Send the sensor data as the response
-    res.json(sensorData);
-  } catch (error) {
-    console.error('Error fetching sensor data:', error);
-    res.status(500).json({ error: 'Failed to fetch sensor data' });
+    const [fileExists] = await file.exists();
+    if (fileExists) {
+      const [fileContent] = await file.download();
+      existingData = fileContent.toString();
+    }
+  } catch (err) {
+    console.error('Error reading existing file content:', err);
   }
-});
+
+  // Append new data to existing content
+  const newData = "Temperature: " + jsonTemperature + "," + "Humidity: " + jsonHumidity + "," + "Soil Moisture:" + jsonSoil_moisture;
+  const updatedData = newData + "\n"+ existingData;
+
+  // Save the updated data to the file
+  try {
+    await file.save(updatedData);
+    console.log('Data appended to file successfully');
+  } catch (err) {
+    console.error('Error saving data to file:', err);
+  }
+
+  // Send a response back
+  res.send('Data received and stored successfully');
+}
 
 // Start the server
 const port = process.env.PORT || 8080;
