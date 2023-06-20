@@ -16,7 +16,7 @@ app.post('/', async (req, res) => {
     const { temperature, humidity, soil_moisture } = req.body;
 
     // Store sensor data in Google Cloud Storage
-    await storeSensorData(temperature, humidity, soil_moisture);
+    await storeSensorData({temperature, humidity, soil_moisture});
 
     // Send response
     res.status(200).send('Sensor data recorded successfully');
@@ -27,20 +27,20 @@ app.post('/', async (req, res) => {
 });
 
 // Function to store sensor data in Google Cloud Storage
-async function storeSensorData(temperature, humidity, soil_moisture) {
+async function storeSensorData({temperature, humidity, soil_moisture}) {
   const storage = new Storage();
 
   // Generate a unique filename for each data entry
-  const filename = `whole-data.txt`;
-  
+  const filename = `final-every-data.txt`;
+
   // Create a new file in the specified bucket
   const bucket = storage.bucket(bucketName);
   const file = bucket.file(filename);
 
   // Define the sensor data as JSON
-  const jsonTemperature = JSON.stringify(temperature);
-  const jsonHumidity = JSON.stringify(humidity);
-  const jsonSoil_moisture = JSON.stringify(soil_moisture);
+  const sensorTemperature = JSON.stringify(temperature);
+  const sensorHumidity = JSON.stringify(humidity);
+  const sensorSoilMoisture = JSON.stringify(soil_moisture);
 
   // Read existing file content
   let existingData = '';
@@ -55,8 +55,8 @@ async function storeSensorData(temperature, humidity, soil_moisture) {
   }
 
   // Append new data to existing content
-  const newData = "Temperature: " + jsonTemperature + "," + "Humidity: " + jsonHumidity + "," + "Soil Moisture:" + jsonSoil_moisture;
-  const updatedData = newData + "\n"+ existingData;
+  const newData = "Temperature: " + sensorTemperature + "," + "Humidity: " + sensorHumidity + "," + "Soil Moisture: " + sensorSoilMoisture;
+  const updatedData = newData + "\n" + existingData;
 
   // Save the updated data to the file
   try {
@@ -65,9 +65,8 @@ async function storeSensorData(temperature, humidity, soil_moisture) {
   } catch (err) {
     console.error('Error saving data to file:', err);
   }
-
-  // Send a response back
-  res.send('Data received and stored successfully');
+  
+  console.log(`Sensor data saved to: gs://${bucketName}/${filename}`);
 }
 
 // Start the server
