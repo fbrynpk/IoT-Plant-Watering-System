@@ -3,6 +3,7 @@
 #include <ESP8266HTTPClient.h>
 #include <DHT.h>
 #include <DHT_U.h>
+#include <ArduinoJson.h>
 DHT dht(D4, DHT11);
 
 // Update with your Wi-Fi credentials
@@ -12,13 +13,43 @@ const char* password = "penghunumber1";
 // Update with your Cloud Run service URL
 const char* cloudRunURL = "https://sensor-data-7uy7quia7q-de.a.run.app";
 
+// JSON document size
+const size_t JSON_DOC_SIZE = JSON_OBJECT_SIZE(4);
+
+// Create a DynamicJsonDocument
+DynamicJsonDocument jsonDoc(JSON_DOC_SIZE);
+
 //Sensor data variables
 float temperature;
 float humidity;
-// Initialize sensor readings (replace with your own sensor code)
+// Initialize sensor readings
 int soilMoisture = A0;
 const int relayPin = D0;
-const int moistureThreshold = 1010;
+const int moistureThreshold = 600;
+
+float readTemperature() {
+  // Read temperature from the DHT sensor
+  float temperature = dht.readTemperature();
+
+  // Check if any errors occurred during reading
+  if (isnan(temperature)) {
+    Serial.println("Failed to read temperature from the DHT sensor!");
+    return -1; // Return an error value or handle the error as needed
+  }
+  return temperature;
+}
+
+float readHumidity() {
+  // Read humidity from the DHT sensor
+  float humidity = dht.readHumidity();
+
+  // Check if any errors occurred during reading
+  if (isnan(humidity)) {
+    Serial.println("Failed to read humidity from the DHT sensor!");
+    return -1; // Return an error value or handle the error as needed
+  }
+  return humidity;
+}
 
 void setup() {
   Serial.begin(115200);
@@ -45,10 +76,16 @@ void loop() {
   // Add any additional logic or sensor readings here
   temperature = readTemperature();
   humidity = readHumidity();
-  soilMoisture = analogRead(A0);
+  int soil_moisture = analogRead(soilMoisture);
+  
+  // Add the sensor data to the JSON document
+  jsonDoc["temperature"] = temperature;
+  jsonDoc["humidity"] = humidity;
+  jsonDoc["soil_moisture"] = soil_moisture;
 
-  // Create JSON payload
-  String payload = "{\"temperature\": " + String(temperature) + ", \"humidity\": " + String(humidity) + ", \"soil_moisture\": " + soilMoisture + "}";
+  String payload;
+  serializeJson(jsonDoc, payload);
+  Serial.println(payload);
 
   // Send sensor data to Cloud Run
   std::unique_ptr<BearSSL::WiFiClientSecure>client(new BearSSL::WiFiClientSecure);
@@ -69,43 +106,13 @@ void loop() {
   //Free resources
   https.end();
 
+  if(soil_moisture > moistureThreshold) // if water level is low then give the relay power 
+  {
+   digitalWrite(relayPin,HIGH); // high is to give the relay power
+   delay(5000);
+   digitalWrite(relayPin, LOW); // low is to cut the relay
+   Serial.println("Water Pump Turned On for 1 second");
+  }
   //Delay before sending the next data
-  delay(1000);
-
-  if(soilMoisture < moistureThreshold) // if water level is full then cut the relay 
-  {
-   digitalWrite(relayPin,LOW); // low is to cut the relay
-   Serial.println("Water Pump Turned Off");
-  }
-  else
-  {
-    digitalWrite(relayPin,HIGH); //high to continue proving signal and water supply
-    Serial.println("Water Pump Turned Om");
-  }
-}
-
-float readTemperature() {
-  // Read temperature from the DHT sensor
-  float temperature = dht.readTemperature();
-
-  // Check if any errors occurred during reading
-  if (isnan(temperature)) {
-    Serial.println("Failed to read temperature from the DHT sensor!");
-    return -1; // Return an error value or handle the error as needed
-  }
-
-  return temperature;
-}
-
-float readHumidity() {
-  // Read humidity from the DHT sensor
-  float humidity = dht.readHumidity();
-
-  // Check if any errors occurred during reading
-  if (isnan(humidity)) {
-    Serial.println("Failed to read humidity from the DHT sensor!");
-    return -1; // Return an error value or handle the error as needed
-  }
-
-  return humidity;
+  delay(10000);
 }
